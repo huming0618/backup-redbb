@@ -1,18 +1,57 @@
 const puppeteer = require('puppeteer');
 
+const Mode = { INIT: 0, TO_LOGIN: 1, LOGIN_DONE: 2, POST_HOMEPAGE: 3, READ_POSTLIST: 4 };
+
+let mode = Mode.INIT;
+
+const setMode = (nextMode)=>{
+    mode = nextMode;
+}
+
+
+
 const main = async () => {
-    let loginDone = false;
     const browser = await puppeteer.launch({headless: false});
     const page = await browser.newPage();
+
+    const readPost = async (url)=>{
+        console.log(url);
+        await page.goto(url);
+        const content = await page.evaluate(() => {
+            return {
+                title: document.getElementById('post_title').value,
+                body: document.getElementById('content_ifr').contentWindow.document.body.innerHTML
+            };
+        });
+        console.log(content.title);
+        console.log(content.body);
+        //
+    }
+
+    const readPostList = async ()=>{
+        setMode(Mode.READ_POSTLIST);
+        const postFormURLList = await page.evaluate(() => {
+            const list = Array.from(document.querySelectorAll('td.align-left.PLtitle > a'));
+            return list.map(x=>x.href);
+        });
+        console.log('postFormURLList[0]', postFormURLList[0]);
+        readPost(postFormURLList[0]);
+    }
+
+    page.on('load', ()=>{
+
+    });
+
     page.on('response', async (resp)=>{
         const url = resp.url();
-        if (!loginDone && url.indexOf('home.blogbus.com') > 0){
-            loginDone = true;
+        if (mode === Mode.TO_LOGIN && url.indexOf('home.blogbus.com') > 0){
+            setMode(Mode.LOGIN_DONE);
             await page.goto('http://blog.home.blogbus.com/posts');
         }
-        else if(loginDone) {
+        else if(mode === Mode.LOGIN_DONE) {
             if (url === 'http://blog.home.blogbus.com/posts'){
-                console.log('blog list');
+                setMode(Mode.POST_HOMEPAGE);
+                setTimeout(readPostList, 5000);
             }
         }
         // if (url.indexOf('vote/rankingList') > 0){
@@ -25,10 +64,10 @@ const main = async () => {
     });
 
     await page.goto('http://passport.blogbus.com/login_form');
-
+    setMode(Mode.TO_LOGIN);
 
     setTimeout(async ()=>{
-        console.log('1.login');
+        
         await page.evaluate(() => {
             console.log(document.getElementsByName('username'))
             document.getElementsByName('username')[0].value = "多啦好多梦";
