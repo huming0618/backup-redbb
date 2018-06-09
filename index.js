@@ -1,4 +1,7 @@
 const puppeteer = require('puppeteer');
+const Rx = require('rx');
+
+const LOGIN_URL = "http://passport.blogbus.com/login_form";
 
 const Mode = { INIT: 0, TO_LOGIN: 1, LOGIN_DONE: 2, POST_HOMEPAGE: 3, READ_POSTLIST: 4 };
 
@@ -11,6 +14,18 @@ const setMode = (nextMode)=>{
 const main = async () => {
     const browser = await puppeteer.launch({headless: false});
     const page = await browser.newPage();
+
+    const pageLoadSubject = new Rx.Subject();
+
+    page.on('load', ()=>{
+        pageLoadSubject.onNext(page.url());
+    });
+
+    //const pageLoad = Rx.Observable.fromEvent(page, 'load');
+    // pageLoad.subscribe((()=>{
+    //     console.log('page', page.url());
+    // }))
+
 
     const readPost = async (url)=>{
         console.log(url);
@@ -36,9 +51,7 @@ const main = async () => {
         readPost(postFormURLList[0]);
     }
 
-    page.on('load', ()=>{
 
-    });
 
     page.on('response', async (resp)=>{
         const url = resp.url();
@@ -61,7 +74,7 @@ const main = async () => {
         // }
     });
 
-    await page.goto('http://passport.blogbus.com/login_form');
+    await page.goto(LOGIN_URL);
     setMode(Mode.TO_LOGIN);
 
     setTimeout(async ()=>{
@@ -76,6 +89,11 @@ const main = async () => {
         // console.log('done');
     }, 5000);
     
+    pageLoadSubject.subscribe({
+        onNext:(url)=>{
+            console.log('the url', url);
+        }
+    })
     // await browser.close();
 }
 
