@@ -2,6 +2,8 @@ const puppeteer = require('puppeteer');
 const Rx = require('rx');
 
 const LOGIN_URL = "http://passport.blogbus.com/login_form";
+const HOME_URL = "home.blogbus.com";
+const POSTS_URL = 'http://blog.home.blogbus.com/posts';
 
 const Mode = { INIT: 0, TO_LOGIN: 1, LOGIN_DONE: 2, POST_HOMEPAGE: 3, READ_POSTLIST: 4 };
 
@@ -16,6 +18,9 @@ const main = async () => {
     const page = await browser.newPage();
 
     const pageLoadSubject = new Rx.Subject();
+    const loginDoneSubject = new Rx.Subject();
+    const postListPageLoadSubject = new Rx.Subject();
+    const postPageLoadSubject = new Rx.Subject();
 
     page.on('load', ()=>{
         pageLoadSubject.onNext(page.url());
@@ -55,12 +60,12 @@ const main = async () => {
 
     page.on('response', async (resp)=>{
         const url = resp.url();
-        if (mode === Mode.TO_LOGIN && url.indexOf('home.blogbus.com') > 0){
+        if (mode === Mode.TO_LOGIN && url.indexOf(HOME_URL) > 0){
             setMode(Mode.LOGIN_DONE);
-            await page.goto('http://blog.home.blogbus.com/posts');
+            await page.goto();
         }
         else if(mode === Mode.LOGIN_DONE) {
-            if (url === 'http://blog.home.blogbus.com/posts'){
+            if (url === POSTS_URL){
                 setMode(Mode.POST_HOMEPAGE);
                 setTimeout(readPostList, 5000);
             }
@@ -92,6 +97,7 @@ const main = async () => {
     pageLoadSubject.subscribe({
         onNext:(url)=>{
             console.log('the url', url);
+            
         }
     })
     // await browser.close();
